@@ -9,33 +9,30 @@
         :root { --primary: #ff4d6d; --secondary: #ffb3c1; --text: #590d22; }
         body { font-family: 'Segoe UI', sans-serif; background-color: #fff0f3; color: var(--text); display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; overflow: hidden; text-align: center; }
         
-        .card { background: white; padding: 2rem; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 85%; max-width: 400px; position: relative; min-height: 400px; display: flex; flex-direction: column; justify-content: center; z-index: 1; }
+        .card { background: white; padding: 2rem; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 85%; max-width: 400px; min-height: 400px; display: flex; flex-direction: column; justify-content: center; position: relative; }
         .hidden { display: none !important; }
         
-        .btn-container { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
-        
-        /* Fixed Yes Button, Absolute No Button */
-        .choice-container { 
-            margin-top: 30px; 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            gap: 20px; 
-            height: 100px; 
-            position: relative;
+        /* THE FIX: Separate layers for buttons */
+        .choice-area { 
+            position: relative; 
+            height: 120px; 
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
+
+        button { background-color: var(--primary); color: white; border: none; padding: 12px 25px; border-radius: 15px; cursor: pointer; font-size: 1.1rem; font-weight: bold; transition: transform 0.2s; touch-action: manipulation; z-index: 10; }
         
-        button { background-color: var(--primary); color: white; border: none; padding: 12px 25px; border-radius: 15px; cursor: pointer; font-size: 1.1rem; font-weight: bold; transition: 0.3s; touch-action: manipulation; }
+        /* Yes button stays in the document flow */
+        #yesBtn { position: relative; }
         
-        /* Keeps Yes button in the center even when No disappears */
-        #yesBtn { position: relative; z-index: 5; order: 1; }
-        #noBtn { position: relative; z-index: 10; order: 2; background-color: #888; }
+        /* No button starts relative but will be forced to absolute immediately */
+        #noBtn { position: relative; background-color: #888; margin-left: 15px; }
 
         #timer { font-size: 1.1rem; font-weight: bold; color: var(--primary); margin: 10px 0; }
         .feedback { height: 25px; margin-top: 10px; font-weight: bold; color: var(--primary); }
-        
-        /* Video/GIF styling */
-        .success-media { width: 100%; border-radius: 15px; margin-top: 15px; }
+        .success-img { width: 100%; border-radius: 15px; margin-top: 15px; display: block; }
     </style>
 </head>
 <body>
@@ -46,7 +43,7 @@
 
     <div id="quiz-stage" class="card">
         <h2 id="questionText">Ready Loulu? ❤️</h2>
-        <div id="optionsContainer" class="btn-container">
+        <div class="btn-container" style="display:flex; flex-direction:column; gap:10px;">
             <button id="startBtn">Click to start! 🎵</button>
         </div>
         <div id="feedback" class="feedback"></div>
@@ -55,7 +52,7 @@
     <div id="proposal-stage" class="card hidden">
         <h1>Will you be my Valentine? ❤️</h1>
         <div id="timer"></div>
-        <div class="choice-container">
+        <div class="choice-area">
             <button id="yesBtn">YES! ❤️</button>
             <button id="noBtn">No 😢</button>
         </div>
@@ -64,9 +61,7 @@
     <div id="success-stage" class="card hidden">
         <h1>WEEEEEEEE! 🎉</h1>
         <p>I can't wait to spend the day and every second of my life with you! ❤️❤️❤️</p>
-        <video class="success-media" autoplay loop muted playsinline>
-            <source src="https://i.giphy.com/media/v1.Y2lkPTc5MGI3NjExOHpueWpueWpueWpueWpueWpueWpueWpueWpueWpueWpueWpueZ3cm93eCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/KztT2c4u8mYYUiMKdJ/giphy.mp4" type="video/mp4">
-        </video>
+        <img class="success-img" src="https://media.giphy.com/media/KztT2c4u8mYYUiMKdJ/giphy.gif" alt="Happy Dance">
     </div>
 
     <script>
@@ -79,16 +74,16 @@
         let currentQ = 0;
         const music = document.getElementById('bgMusic');
 
-        // MOBILE AUDIO UNLOCK
+        // Initial Audio Unlock
         document.getElementById('startBtn').addEventListener('click', function() {
-            music.play();
+            music.play().catch(e => console.log("Audio pending..."));
             loadQuestion();
         });
 
         function loadQuestion() {
             const q = quizData[currentQ];
             document.getElementById('questionText').innerText = q.q;
-            const container = document.getElementById('optionsContainer');
+            const container = document.querySelector('.btn-container');
             container.innerHTML = '';
             
             q.options.forEach((opt, index) => {
@@ -114,23 +109,34 @@
             }
         }
 
-        // NO BUTTON PRANK - MOBLE FRIENDLY
+        // NO BUTTON LOGIC
         const noBtn = document.getElementById('noBtn');
-        const moveHandler = function(e) {
-            e.preventDefault(); // Prevents accidental clicking
+        
+        function moveNoButton(e) {
+            if (e) e.preventDefault();
+            // Once moved, it becomes fixed so it doesn't push the Yes button
             noBtn.style.position = 'fixed';
-            const x = Math.random() * (window.innerWidth - noBtn.offsetWidth);
-            const y = Math.random() * (window.innerHeight - noBtn.offsetHeight);
+            noBtn.style.zIndex = '9999';
+            
+            const padding = 50;
+            const x = Math.random() * (window.innerWidth - noBtn.offsetWidth - padding);
+            const y = Math.random() * (window.innerHeight - noBtn.offsetHeight - padding);
+            
             noBtn.style.left = x + 'px';
             noBtn.style.top = y + 'px';
-        };
+        }
 
-        noBtn.addEventListener('mouseover', moveHandler);
-        noBtn.addEventListener('touchstart', moveHandler);
+        noBtn.addEventListener('mouseover', moveNoButton);
+        noBtn.addEventListener('touchstart', moveNoButton, {passive: false});
 
-        // YES BUTTON
-        document.getElementById('yesBtn').addEventListener('click', celebrate);
+        // YES BUTTON LOGIC
+        document.getElementById('yesBtn').addEventListener('click', function() {
+            confetti({ particleCount: 200, spread: 100, origin: { y: 0.6 } });
+            document.getElementById('proposal-stage').classList.add('hidden');
+            document.getElementById('success-stage').classList.remove('hidden');
+        });
 
+        // Timer Function
         function updateTimer() {
             const vDay = new Date("Feb 14, 2026 00:00:00").getTime();
             const now = new Date().getTime();
@@ -142,12 +148,6 @@
         }
         setInterval(updateTimer, 1000);
         updateTimer();
-
-        function celebrate() {
-            confetti({ particleCount: 200, spread: 100, origin: { y: 0.6 } });
-            document.getElementById('proposal-stage').classList.add('hidden');
-            document.getElementById('success-stage').classList.remove('hidden');
-        }
     </script>
 </body>
 </html>
